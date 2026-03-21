@@ -1,46 +1,72 @@
-import { WORD_VEC_SIZE, type Word, type WordVec } from './types';
+import { WORD_VEC_SIZE, WORD_LETTERS, type Word, type WordVec } from './types';
 
-// Maps each letter into a number from 0-1 based on its horizontal position on a QWERTY keyboard
-export const LETTER_ENCODINGS : {[key : string] : number} = {
-    "q": 0,
-    "a": 0.04,
-    "z": 0.08,
-    "w": 0.12,
-    "s": 0.16,
-    "x": 0.2,
-    "e": 0.24,
-    "d": 0.28,
-    "c": 0.32,
-    "r": 0.36,
-    "f": 0.4,
-    "v": 0.44,
-    "t": 0.48,
-    "g": 0.52,
-    "b": 0.56,
-    "y": 0.6,
-    "h": 0.64,
-    "n": 0.68,
-    "u": 0.72,
-    "j": 0.76,
-    "m": 0.8,
-    "i": 0.84,
-    "k": 0.88,
-    "o": 0.92,
-    "l": 0.96,
-    "p": 1
+// Maps each letter into numbers based on their position on a QWERTY keyboard
+export const LETTER_ENCODINGS : {[key : string] : [number, number]} = {
+    "q": [0, 0],
+    "w": [1, 0],
+    "e": [2, 0],
+    "r": [3, 0],
+    "t": [4, 0],
+    "y": [5, 0],
+    "u": [6, 0],
+    "i": [7, 0],
+    "o": [8, 0],
+    "p": [9, 0],
+    "a": [0.25, 1],
+    "s": [1.25, 1],
+    "d": [2.25, 1],
+    "f": [3.25, 1],
+    "g": [4.25, 1],
+    "h": [5.25, 1],
+    "j": [6.25, 1],
+    "k": [7.25, 1],
+    "l": [8.25, 1],
+    "z": [0.75, 2],
+    "x": [1.75, 2],
+    "c": [2.75, 2],
+    "v": [3.75, 2],
+    "b": [4.75, 2],
+    "n": [5.75, 2],
+    "m": [6.75, 2],
 }
+// The "distance" between words added when a letter is inserted/removed
+export const LENGTH_FAC = 10;
 
 // Converts each word into an encoding based on its length and characters
 export function encode_word(word: string) : Word {
-    var vec: WordVec = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-    vec[0] = word.length;
-    for (var i = 1; i < WORD_VEC_SIZE; i++) {
+    var vec: WordVec = Array(WORD_VEC_SIZE).fill(0) as WordVec;
+    vec[0] = word.length * LENGTH_FAC;
+    for (var i = 0; i < WORD_LETTERS; i++) {
         // If there is an a-z letter here, use its encoding
-        if (i <= word.length && word[i-1] in LETTER_ENCODINGS) {
-            vec[i] = LETTER_ENCODINGS[word[i-1]]
+        if (i < word.length && word[i] in LETTER_ENCODINGS) {
+            vec[2*i+1] = LETTER_ENCODINGS[word[i]][0];
+            vec[2*i+2] = LETTER_ENCODINGS[word[i]][1];
         } else {
-            vec[i] = 0.5 // Use a neutral value
+            // Use a neutral value
+            vec[2*i+1] = 4.5;
+            vec[2*i+2] = 1;
         }
     }
     return {str: word, vec: vec}
+}
+
+// Splits a list of words into two parts; one where a given dimension is at most the median,
+// and one where it is greater than the median.
+export function partition_words(words: Word[], dim: number) : [Word[], Word[]] | null {
+    // Check for invalid dimension
+    if (dim % 1 != 0 || dim < 0 || dim >= WORD_VEC_SIZE) {
+        return null;
+    }
+    // Sort by the given dimension
+    words.sort((a, b) => a.vec[dim] - b.vec[dim]);
+    // Determine partition location
+    var partition = Math.floor(words.length / 2);
+    // If the median value occurs multiple times, we want
+    // to partition at the last median
+    while (partition < words.length - 1 && words[partition].vec[dim] == words[partition+1].vec[dim]) {
+        partition++;
+    }
+    // We use partition+1 since partition is the index of the last element
+    // that should be in the first array
+    return [words.slice(0, partition+1), words.slice(partition+1)];
 }

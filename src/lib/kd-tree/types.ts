@@ -4,8 +4,10 @@ type Tuple<T, N extends number> = N extends N ? number extends N ? T[] : _TupleO
 type _TupleOf<T, N extends number, R extends unknown[]> = R['length'] extends N ? R : _TupleOf<T, N, [T, ...R]>;
 
 // Fixed-length vector of numbers to store words
-// We store the word length followed by horizontal positions of the first 15 letters
-export const WORD_VEC_SIZE = 16
+// We store the word length followed by horizontal and vertical positions
+// Because the longest word in the list has 31 letters, we use vectors of size 63
+export const WORD_VEC_SIZE = 63
+export const WORD_LETTERS = (WORD_VEC_SIZE-1)/2
 export type WordVec = Tuple<number, typeof WORD_VEC_SIZE>
 
 // Stores all the information about a word
