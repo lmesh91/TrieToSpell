@@ -34,9 +34,9 @@ export const LENGTH_FAC = 10;
 
 // Converts each word into an encoding based on its length and characters
 export function encode_word(word: string) : Word {
-    var vec: WordVec = Array(WORD_VEC_SIZE).fill(0) as WordVec;
+    const vec: WordVec = Array(WORD_VEC_SIZE).fill(0) as WordVec;
     vec[0] = word.length * LENGTH_FAC;
-    for (var i = 0; i < WORD_LETTERS; i++) {
+    for (let i = 0; i < WORD_LETTERS; i++) {
         // If there is an a-z letter here, use its encoding
         if (i < word.length && word[i] in LETTER_ENCODINGS) {
             vec[2*i+1] = LETTER_ENCODINGS[word[i]][0];
@@ -52,7 +52,7 @@ export function encode_word(word: string) : Word {
 
 // Splits a list of words into two parts; one where a given dimension is at most the median,
 // and one where it is greater than the median.
-export function partition_words(words: Word[], dim: number) : [Word[], Word[]] | null {
+export function partition_words_dim(words: Word[], dim: number) : [Word[], Word[]] | null {
     // Check for invalid dimension
     if (dim % 1 != 0 || dim < 0 || dim >= WORD_VEC_SIZE) {
         return null;
@@ -60,7 +60,7 @@ export function partition_words(words: Word[], dim: number) : [Word[], Word[]] |
     // Sort by the given dimension
     words.sort((a, b) => a.vec[dim] - b.vec[dim]);
     // Determine partition location
-    var partition = Math.floor(words.length / 2);
+    let partition = Math.floor((words.length-1) / 2);
     // If the median value occurs multiple times, we want
     // to partition at the last median
     while (partition < words.length - 1 && words[partition].vec[dim] == words[partition+1].vec[dim]) {
@@ -69,4 +69,23 @@ export function partition_words(words: Word[], dim: number) : [Word[], Word[]] |
     // We use partition+1 since partition is the index of the last element
     // that should be in the first array
     return [words.slice(0, partition+1), words.slice(partition+1)];
+}
+
+// Infer the best partition to use
+export function partition_words(words: Word[]) : [number, [Word[], Word[]]] {
+    // Try every possible partition
+    const partitions = Array(WORD_VEC_SIZE).fill(null);
+    for (let i = 0; i < WORD_VEC_SIZE; i++) {
+        partitions[i] = partition_words_dim(words, i);
+    }
+    // Determine the best partition, in terms of how equal the split is
+    let best_partition = -1;
+    let best_accuracy = words.length+1;
+    for (let i = 0; i < WORD_VEC_SIZE; i++) {
+        if (partitions[i][0].length < best_accuracy) {
+            best_partition = i;
+            best_accuracy = partitions[i][0].length;
+        }
+    }
+    return [best_partition, partitions[best_partition]]
 }

@@ -18,19 +18,15 @@ export type Word = {
 
 // Types for the k-d tree
 
-// Because leaf nodes and internal nodes store different data,
-// they are represented as separate types.
-export type KDLeaf = {
-    word: Word;
-    level: number;
-};
+// Of note, unlike traditional k-d trees, the split dimension isn't sequential;
+// this is due to some dimensions having much higher variance than others.
 export type KDInternal = {
     split: number;
-    level: number;
+    dim: number;
     left?: KDNode;
     right?: KDNode;
 };
-export type KDNode = KDLeaf | KDInternal;
+export type KDNode = Word | KDInternal;
 
 export type KDTree = {
     head?: KDNode
