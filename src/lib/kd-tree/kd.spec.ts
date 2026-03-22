@@ -38,29 +38,46 @@ describe('partition_words_dim', () => {
     const cut = encode_word('cut');
     const deep = encode_word('deep');
     test('example', () => {
-        const part = partition_words_dim([be, cut, deep], 0);
-        expect(part![0].length).toBe(2);
-        expect(part![1].length).toBe(1);
+        const part = partition_words_dim([be, cut, deep], 0, 0, 3);
+        expect(part![1]).toBe(2);
         expect(part![0][0].vec[0]).toBe(2*LENGTH_FAC);
         expect(part![0][1].vec[0]).toBe(3*LENGTH_FAC);
-        expect(part![1][0].vec[0]).toBe(4*LENGTH_FAC);
+        expect(part![0][2].vec[0]).toBe(4*LENGTH_FAC);
     })
     test('empty', () => {
-        const part = partition_words_dim([], 0);
+        const part = partition_words_dim([], 0, 0, 0);
         expect(part![0].length).toBe(0);
-        expect(part![1].length).toBe(0);
+        expect(part![1]).toBe(0);
     })
     test('invalid', () => {
-        const part1 = partition_words_dim([], -1);
-        const part2 = partition_words_dim([], WORD_VEC_SIZE);
-        const part3 = partition_words_dim([], 0.5);
+        const part1 = partition_words_dim([], -1, 0, 0);
+        const part2 = partition_words_dim([], WORD_VEC_SIZE, 0, 0);
+        const part3 = partition_words_dim([], 0.5, 0, 0);
         expect(part1).toBe(null);
         expect(part2).toBe(null);
         expect(part3).toBe(null);
     })
     test('median moves', () => {
-        const part = partition_words_dim([be, cut, cut, cut, deep], 0);
-        expect(part![0].length).toBe(4);
-        expect(part![1].length).toBe(1);
+        const part = partition_words_dim([be, cut, cut, cut, deep], 0, 0, 5);
+        expect(part![1]).toBe(4);
+    })
+    const retrad = encode_word('retrad');
+    const tetras = encode_word('tetras');
+    const tetrad = encode_word('tetrad');
+    // In this case, the only "good" way to split the search is by
+    // having two words on the right and one on the left
+    test('large right branch', () => {
+        const part = partition_words_dim([retrad, tetras, tetrad], 1, 0, 3);
+        expect(part![1]).toBe(1);
+    })
+    test('sub-arrays', () => {
+        const part1 = partition_words_dim([be, retrad, tetras, tetrad], 1, 1, 4);
+        expect(part1![1]).toBe(2);
+        const part2 = partition_words_dim([retrad, tetras, tetrad, be], 1, 0, 3);
+        expect(part2![1]).toBe(1);
+        const part3 = partition_words_dim([retrad, tetras, tetrad, be], 1, 2, 4);
+        expect(part3![1]).toBe(3);
     })
 })
+
+// TODO: write tests for partition_words and the tree itself

@@ -52,39 +52,56 @@ export function encode_word(word: string) : Word {
 
 // Splits a list of words into two parts; one where a given dimension is at most the median,
 // and one where it is greater than the median.
-export function partition_words_dim(words: Word[], dim: number) : [Word[], Word[]] | null {
+export function partition_words_dim(words: Word[], dim: number, start: number, end: number) : [Word[], number] | null {
     // Check for invalid dimension
     if (dim % 1 != 0 || dim < 0 || dim >= WORD_VEC_SIZE) {
         return null;
     }
     // Sort by the given dimension
-    words.sort((a, b) => a.vec[dim] - b.vec[dim]);
+    // A potential improvement here is creating a sorting algorithm
+    // to do this in-place, and utilize the limited range of the values
+    const subarray = words.slice(start, end);
+    subarray.sort((a, b) => a.vec[dim] - b.vec[dim]);
+    words.splice(start, subarray.length, ...subarray);
     // Determine partition location
-    let partition = Math.floor((words.length-1) / 2);
+    const partition = Math.floor((start+end-1) / 2);
     // If the median value occurs multiple times, we want
-    // to partition at the last median
-    while (partition < words.length - 1 && words[partition].vec[dim] == words[partition+1].vec[dim]) {
-        partition++;
+    // to partition at the last median (or just before it)
+    let partl = partition
+    let partr = partition
+    while (partr < end - 1 && words[partr].vec[dim] == words[partr+1].vec[dim]) {
+        partr++;
     }
-    // We use partition+1 since partition is the index of the last element
-    // that should be in the first array
-    return [words.slice(0, partition+1), words.slice(partition+1)];
+    while (partl > start && words[partl].vec[dim] == words[partl-1].vec[dim]) {
+        partl--;
+    }
+    // We need to decrement once more so that partl is the value before the first instance of median
+    partl--;
+    
+    // Figure out which partition to use
+    // Use left partition if the larger part is smaller
+    if (end-(partl+1) < partr+1-start) {
+        return [words, partl+1];
+    } else {
+        return [words, partr+1];
+    }
 }
 
-// Infer the best partition to use
-export function partition_words(words: Word[]) : [number, [Word[], Word[]]] {
-    // Try every possible partition
+// Pick a good partition to use
+const PARTITION_QUALITY = 0.6
+export function partition_words(words: Word[], start: number, end: number) : [number, [Word[], number]] {
+    // Try every possible partition, stopping early past a cutoff
+    let best_partition = -1;
+    let best_accuracy = Infinity;
     const partitions = Array(WORD_VEC_SIZE).fill(null);
     for (let i = 0; i < WORD_VEC_SIZE; i++) {
-        partitions[i] = partition_words_dim(words, i);
-    }
-    // Determine the best partition, in terms of how equal the split is
-    let best_partition = -1;
-    let best_accuracy = words.length+1;
-    for (let i = 0; i < WORD_VEC_SIZE; i++) {
-        if (partitions[i][0].length < best_accuracy) {
+        partitions[i] = partition_words_dim(words, i, start, end);
+        const accuracy = Math.max(partitions[i][1]-start,end-partitions[i][1])
+        if (accuracy <= PARTITION_QUALITY * (end-start)) {
+            return [i, partitions[i]];
+        } else if (accuracy < best_accuracy) {
             best_partition = i;
-            best_accuracy = partitions[i][0].length;
+            best_accuracy = accuracy;
         }
     }
     return [best_partition, partitions[best_partition]]

@@ -27,7 +27,3 @@ export type KDInternal = {
     right?: KDNode;
 };
 export type KDNode = Word | KDInternal;
-
-export type KDTree = {
-    head?: KDNode
-}
