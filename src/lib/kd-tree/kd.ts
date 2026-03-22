@@ -26,7 +26,6 @@ function _build_kd_tree(words: Word[], start: number, end: number) : KDNode | un
 
 // Helper function that searches for a word in a KDTree
 function _search_kd_tree(node: KDNode | undefined, word: Word) : boolean {
-    console.log(node, word);
     if (node == undefined) return false;
     if ('vec' in node) { // of type Word
         return (node as Word).str == word.str;
@@ -34,12 +33,33 @@ function _search_kd_tree(node: KDNode | undefined, word: Word) : boolean {
         let internal = node as KDInternal;
         // Decide to look at left or right subtree
         if (word.vec[internal.dim] <= internal.split) {
-            return _search_kd_tree(internal.left, word)
+            return _search_kd_tree(internal.left, word);
         } else {
-            return _search_kd_tree(internal.right, word)
+            return _search_kd_tree(internal.right, word);
         }
     }
-    return false;
+}
+
+// Helper function that inserts a word in a KDTree
+function _insert_kd_tree(node: KDNode | undefined, word: Word) : KDNode | undefined {
+    if (node == undefined) return undefined;
+    if ('vec' in node) { // of type Word
+        if ((node as Word).str == word.str) {
+            return node; // Word already in tree
+        }
+        // Add word to tree
+        return _build_kd_tree([node as Word, word], 0, 2);
+    } else {
+        let internal = node as KDInternal;
+        // Decide to look at left or right subtree
+        if (word.vec[internal.dim] <= internal.split) {
+            internal.left = _insert_kd_tree(internal.left, word);
+            return node;
+        } else {
+            internal.right = _insert_kd_tree(internal.right, word);
+            return node;
+        }
+    }
 }
 
 export class KDTree {
@@ -53,5 +73,9 @@ export class KDTree {
 
     search(word: string) : boolean {
         return _search_kd_tree(this.head, encode_word(word));
+    }
+
+    insert(word: string) : undefined {
+        _insert_kd_tree(this.head, encode_word(word));
     }
 }
