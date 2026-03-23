@@ -1,4 +1,4 @@
-import { WORD_VEC_SIZE, WORD_LETTERS, type Word, type WordVec } from './types';
+import { WORD_VEC_SIZE, WORD_LETTERS, type Word, type WordVec, type RangeVec } from './types';
 
 // Maps each letter into numbers based on their position on a QWERTY keyboard
 export const LETTER_ENCODINGS : {[key : string] : [number, number]} = {
@@ -105,4 +105,26 @@ export function partition_words(words: Word[], start: number, end: number) : [nu
         }
     }
     return [best_partition, partitions[best_partition]]
+}
+
+// We use Manhattan distance rather than Pythagorean distance
+export function word_vec_dist(a: WordVec, b: WordVec) : number {
+    let dist: number = 0;
+    for (let i = 0; i < WORD_VEC_SIZE; i++) {
+        dist += Math.abs(a[i]-b[i]);
+    }
+    return dist;
+}
+
+// Returns the minimum distance between a word and words in a given range
+export function word_range_dist(a: RangeVec, b: WordVec) : number {
+    let dist: number = 0;
+    for (let i = 0; i < WORD_VEC_SIZE; i++) {
+        if (b[i] > a[i].max) {
+            dist += b[i]-a[i].max;
+        } else if (b[i] < a[i].min) {
+            dist += a[i].min-b[i];
+        }
+    }
+    return dist;
 }

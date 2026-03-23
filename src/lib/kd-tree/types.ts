@@ -27,3 +27,10 @@ export type KDInternal = {
     right?: KDNode;
 };
 export type KDNode = Word | KDInternal;
+
+export type Range = {
+    min: number;
+    max: number;
+}
+
+export type RangeVec = Tuple<Range, typeof WORD_VEC_SIZE>
