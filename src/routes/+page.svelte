@@ -10,7 +10,9 @@
 
         trieTimer = setTimeout(() => {
             console.log("User stopped typing. Checking trie..")
-        }, 500)
+            let words = splitIntoWords(trieText);
+            console.log(words);
+        }, 150)
     };
 
     function handleKdInput() {
@@ -18,8 +20,43 @@
         
         kdTimer = setTimeout(() => {
             console.log("User stopped typing. Checking k-D tree..")
-        }, 500)
+            let words = splitIntoWords(KdText);
+            console.log(words);
+        }, 150)
     };
+
+    /**
+     * For a given input string, splits into an array of words.
+     * Words are delimited by spaces. 
+     * Words can contain punctuation marks, UNLESS they are the last character;
+     * e.g.: "The r.ed fox" 'r.ed' is a word
+     * but in "The red. Fox" 'red.' is not the word; 'red' is.
+     * This helps correctly identify typos.
+     * @param inputString
+     */
+    function splitIntoWords(inputString) {
+        let words = inputString.split(" ");
+        for (let c = 0; c < words.length; c++) {
+            let endsInPeriod = words[c].endsWith(".");
+            let endsInComma = words[c].endsWith(",");
+            let endsInSemicolon = words[c].endsWith(";");
+            let endsInColon = words[c].endsWith(":");
+            let endsInQuestionMark = words[c].endsWith("?");
+            let endsInExclamationMark = words[c].endsWith("!");
+
+            let endsInPunctuation = endsInPeriod || endsInComma || endsInSemicolon || endsInColon || endsInQuestionMark || endsInExclamationMark;
+            if (endsInPunctuation) {
+                words[c] = words[c].slice(0, -1);
+            }
+
+            // First period already cut out... (or just a .. ellipsis)
+            let endsInEllipses = words[c].endsWith("..");
+            if (endsInEllipses) {
+                words[c] = words[c].slice(0, -2);
+            }
+        }
+        return words;
+    }
 </script>
 
 <section id="body">
