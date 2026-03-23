@@ -1,11 +1,47 @@
+<script>
+    let trieText = $state("");
+    let KdText = $state("");
+
+    let trieTimer;
+    let kdTimer;
+
+    function handleTrieInput() {
+        clearTimeout(trieTimer);
+
+        trieTimer = setTimeout(() => {
+            console.log("User stopped typing. Checking trie..")
+        }, 500)
+    };
+
+    function handleKdInput() {
+        clearTimeout(kdTimer);
+        
+        kdTimer = setTimeout(() => {
+            console.log("User stopped typing. Checking k-D tree..")
+        }, 500)
+    };
+</script>
+
 <section id="body">
     <div class="impl">
         <h2>Trie</h2>
-        <textarea></textarea>
+        <textarea
+            bind:value={trieText}
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            oninput={handleTrieInput}
+        ></textarea>
     </div>
     <div class="impl">
         <h2>K-d Tree</h2>
-        <textarea></textarea>
+        <textarea
+            bind:value={KdText}
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            oninput={handleKdInput}
+        ></textarea>
     </div>
 </section>
 
