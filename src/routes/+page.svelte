@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import { Trie } from "$lib/trie/trie.ts";
 
     let props = $props();
@@ -7,15 +7,33 @@
     let KdText = $state("");
 
     function numDifferentChars(a, b) {
-        let i = 0;
-        let count = 0;
-        for (; i < Math.min(a.length, b.length); ++i) {
-            if (a.charAt(i) != b.charAt(i)) {
-                ++count;
-            }
+        const mapA = new Map<string, number>();
+        const mapB = new Map<string, number>();
+
+        for (let c = 0; c < a.length; c++) {
+            const char = a[c];
+            mapA.set(char, (mapA.get(char) ?? 0) + 1);
         }
 
-        return count + Math.max(a.length, b.length) - i - 1;
+        for (let c = 0; c < b.length; c++) {
+            const char = b[c];
+            mapB.set(char, (mapB.get(char) ?? 0) + 1);
+        }
+
+        let count = 0;
+
+        mapA.forEach((value, key, map) => {
+            const bValue = mapB.get(key) ?? 0;
+            count += Math.abs(value - bValue);
+        })
+
+        mapB.forEach((value, key, map) => {
+            if (!mapA.has(key)) {
+                count += value;
+            }
+        })
+
+        return count;
     }
 
     let trieTimer;
@@ -27,19 +45,22 @@
         trieTimer = setTimeout(() => {
             console.log("User stopped typing. Checking trie..");
             let words = splitIntoWords(trieText);
-            for (const word of words) {
+            for (let word of words) {
+                word = word.toLowerCase();
                 const correct = [...new Set(trie.autocorrect(word))];
-
                 //correct.sort((a, b) => Math.abs(word.length - a.length) - Math.abs(word.length - b.length));
                 correct.sort(
                     (a, b) =>
                         numDifferentChars(word, a) - numDifferentChars(word, b),
                 );
                 if (!correct.includes(word)) {
-                    console.log(correct);
+                    const adjustedSuggestions = correct.filter(word => 
+                        word.length > 1
+                    )
+                    console.log(adjustedSuggestions);
                 }
             }
-        }, 150);
+        }, 300);
     }
 
     function handleKdInput() {
@@ -49,7 +70,7 @@
             console.log("User stopped typing. Checking k-D tree..");
             let words = splitIntoWords(KdText);
             console.log(words);
-        }, 150);
+        }, 300);
     }
 
     /**

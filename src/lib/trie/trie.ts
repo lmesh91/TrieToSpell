@@ -62,7 +62,7 @@ export class Trie {
     autocorrect(word: string): string[] {
         let res: string[] = [];
 
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < word.length; ++i) {
             res = res.concat(this.autocomplete(word.substring(0, word.length - i)));
         }
 
@@ -70,7 +70,7 @@ export class Trie {
     }
 
     autocomplete(word: string): string[] {
-        if (word.length < 2 || word.length > 21) {
+        if (word.length < 1 || word.length > 21) {
             return [];
         }
 
