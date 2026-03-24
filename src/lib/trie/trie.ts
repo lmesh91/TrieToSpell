@@ -40,6 +40,7 @@ function _build_trie(head: TrieNode, words: string[]): void {
 
 export class Trie {
     head: TrieNode;
+    outputCount: number;
 
     constructor(words: string[]) {
         this.head = {
@@ -62,29 +63,31 @@ export class Trie {
     autocorrect(word: string): string[] {
         let res: string[] = [];
 
+        this.outputCount = 0;
         for (let i = 0; i < word.length; ++i) {
-            res = res.concat(this.autocomplete(word.substring(0, word.length - i)));
+            res = res.concat(this.autocomplete(word.substring(0, word.length - i), word.length * 1.5));
         }
 
         return res;
     }
 
-    autocomplete(word: string): string[] {
-        if (word.length < 1 || word.length > 21) {
+    autocomplete(word: string, maxLength: number): string[] {
+        if (word.length < 1 || word.length > maxLength || this.outputCount > 1000
+        ) {
             return [];
         }
 
         let res: string[] = [];
-        let wordSearch = this.search(word);
+        const wordSearch = this.search(word);
         if (wordSearch !== undefined && wordSearch.isWord) {
             res = res.concat(word);
         }
 
-
         // finding words that have word as a prefix
         if (wordSearch !== undefined) {
             wordSearch.nodeMap.forEach((value, key, map) => {
-                res = res.concat(this.autocomplete(word + key));
+                this.outputCount++;
+                res = res.concat(this.autocomplete(word + key, maxLength));
             })
         }
 
