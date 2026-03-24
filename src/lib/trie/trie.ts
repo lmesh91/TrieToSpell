@@ -58,4 +58,36 @@ export class Trie {
     insert(word: string): void {
         _insert_trie(this.head, word);
     }
+
+    autocorrect(word: string): string[] {
+        let res: string[] = [];
+
+        for (let i = 0; i < 4; ++i) {
+            res = res.concat(this.autocomplete(word.substring(0, word.length - i)));
+        }
+
+        return res;
+    }
+
+    autocomplete(word: string): string[] {
+        if (word.length > 21) {
+            return [];
+        }
+
+        let wordSearch = this.search(word);
+        if (wordSearch !== undefined && wordSearch.isWord) {
+            return [word];
+        }
+
+        let res: string[] = [];
+
+        // finding words that have word as a prefix
+        if (wordSearch !== undefined) {
+            wordSearch.nodeMap.forEach((value, key, map) => {
+                res = res.concat(this.autocomplete(word + key));
+            })
+        }
+
+        return res;
+    }
 }

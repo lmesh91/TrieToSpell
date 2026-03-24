@@ -1,4 +1,9 @@
 <script>
+    import { Trie } from '$lib/trie/trie.ts';
+
+    let props = $props();
+    let trie = new Trie(props.data.content);
+    console.log(trie.autocorrect("deor"));
     let trieText = $state("");
     let KdText = $state("");
 
