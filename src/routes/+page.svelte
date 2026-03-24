@@ -1,11 +1,22 @@
 <script>
-    import { Trie } from '$lib/trie/trie.ts';
+    import { Trie } from "$lib/trie/trie.ts";
 
     let props = $props();
     let trie = new Trie(props.data.content);
-    console.log(trie.autocorrect("deor"));
     let trieText = $state("");
     let KdText = $state("");
+
+    function numDifferentChars(a, b) {
+        let i = 0;
+        let count = 0;
+        for (; i < Math.min(a.length, b.length); ++i) {
+            if (a.charAt(i) != b.charAt(i)) {
+                ++count;
+            }
+        }
+
+        return count + Math.max(a.length, b.length) - i - 1;
+    }
 
     let trieTimer;
     let kdTimer;
@@ -14,25 +25,36 @@
         clearTimeout(trieTimer);
 
         trieTimer = setTimeout(() => {
-            console.log("User stopped typing. Checking trie..")
+            console.log("User stopped typing. Checking trie..");
             let words = splitIntoWords(trieText);
-            console.log(words);
-        }, 150)
-    };
+            for (const word of words) {
+                const correct = [...new Set(trie.autocorrect(word))];
+
+                //correct.sort((a, b) => Math.abs(word.length - a.length) - Math.abs(word.length - b.length));
+                correct.sort(
+                    (a, b) =>
+                        numDifferentChars(word, a) - numDifferentChars(word, b),
+                );
+                if (!correct.includes(word)) {
+                    console.log(correct);
+                }
+            }
+        }, 150);
+    }
 
     function handleKdInput() {
         clearTimeout(kdTimer);
-        
+
         kdTimer = setTimeout(() => {
-            console.log("User stopped typing. Checking k-D tree..")
+            console.log("User stopped typing. Checking k-D tree..");
             let words = splitIntoWords(KdText);
             console.log(words);
-        }, 150)
-    };
+        }, 150);
+    }
 
     /**
      * For a given input string, splits into an array of words.
-     * Words are delimited by spaces. 
+     * Words are delimited by spaces.
      * Words can contain punctuation marks, UNLESS they are the last character;
      * e.g.: "The r.ed fox" 'r.ed' is a word
      * but in "The red. Fox" 'red.' is not the word; 'red' is.
@@ -49,7 +71,13 @@
             let endsInQuestionMark = words[c].endsWith("?");
             let endsInExclamationMark = words[c].endsWith("!");
 
-            let endsInPunctuation = endsInPeriod || endsInComma || endsInSemicolon || endsInColon || endsInQuestionMark || endsInExclamationMark;
+            let endsInPunctuation =
+                endsInPeriod ||
+                endsInComma ||
+                endsInSemicolon ||
+                endsInColon ||
+                endsInQuestionMark ||
+                endsInExclamationMark;
             if (endsInPunctuation) {
                 words[c] = words[c].slice(0, -1);
             }
@@ -88,7 +116,7 @@
 </section>
 
 <style>
-    #body { 
+    #body {
         width: 100vw;
         height: 100vh;
         display: flex;
@@ -99,7 +127,18 @@
     }
 
     h2 {
-        font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        font-family:
+            system-ui,
+            -apple-system,
+            BlinkMacSystemFont,
+            "Segoe UI",
+            Roboto,
+            Oxygen,
+            Ubuntu,
+            Cantarell,
+            "Open Sans",
+            "Helvetica Neue",
+            sans-serif;
         font-weight: bold;
     }
 

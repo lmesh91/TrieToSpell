@@ -70,16 +70,16 @@ export class Trie {
     }
 
     autocomplete(word: string): string[] {
-        if (word.length > 21) {
+        if (word.length < 2 || word.length > 21) {
             return [];
         }
 
+        let res: string[] = [];
         let wordSearch = this.search(word);
         if (wordSearch !== undefined && wordSearch.isWord) {
-            return [word];
+            res = res.concat(word);
         }
 
-        let res: string[] = [];
 
         // finding words that have word as a prefix
         if (wordSearch !== undefined) {
