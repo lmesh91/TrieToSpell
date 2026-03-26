@@ -1,40 +1,41 @@
-<script lang="ts">
-    import { Trie } from "$lib/trie/trie.ts";
+<script>
+    // Setup editor TipTap
+    import { onMount } from "svelte";
+    import { createEditor, Editor, EditorContent } from 'svelte-tiptap';
+    import StarterKit from '@tiptap/starter-kit';
+    
+    let trieEditor = $state();
+    let kdEditor = $state();
 
-    let props = $props();
-    let trie = new Trie(props.data.content);
     let trieText = $state("");
     let KdText = $state("");
 
-    function numDifferentChars(a, b) {
-        const mapA = new Map<string, number>();
-        const mapB = new Map<string, number>();
+    onMount(() => {
+        trieEditor = createEditor({
+            extensions: [
+                StarterKit,
+            ],
+            onUpdate: ({ editor }) => {
+                trieText = editor.getText();
+                handleTrieInput();
+            },
+            content: "Hello, world!",
+            editorProps: { attributes: { spellcheck: "false", autocomplete: "off", autocapitalize: "off" } },
+        });
 
-        for (let c = 0; c < a.length; c++) {
-            const char = a[c];
-            mapA.set(char, (mapA.get(char) ?? 0) + 1);
-        }
-
-        for (let c = 0; c < b.length; c++) {
-            const char = b[c];
-            mapB.set(char, (mapB.get(char) ?? 0) + 1);
-        }
-
-        let count = 0;
-
-        mapA.forEach((value, key, map) => {
-            const bValue = mapB.get(key) ?? 0;
-            count += Math.abs(value - bValue);
-        })
-
-        mapB.forEach((value, key, map) => {
-            if (!mapA.has(key)) {
-                count += value;
-            }
-        })
-
-        return count;
-    }
+        kdEditor = createEditor({
+            extensions: [
+                StarterKit,
+            ],
+            onUpdate: ({ editor }) => {
+                KdText = editor.getText();
+                handleKdInput();
+            },
+            content: "Hello, world!",
+            editorProps: { attributes: { spellcheck: "false", autocomplete: "off", autocapitalize: "off" } },
+        });
+    });
+    
 
     let trieTimer;
     let kdTimer;
@@ -43,39 +44,25 @@
         clearTimeout(trieTimer);
 
         trieTimer = setTimeout(() => {
-            console.log("User stopped typing. Checking trie..");
+            console.log("User stopped typing. Checking trie..")
             let words = splitIntoWords(trieText);
-            for (let word of words) {
-                word = word.toLowerCase();
-                const correct = [...new Set(trie.autocorrect(word))];
-                //correct.sort((a, b) => Math.abs(word.length - a.length) - Math.abs(word.length - b.length));
-                correct.sort(
-                    (a, b) =>
-                        numDifferentChars(word, a) - numDifferentChars(word, b),
-                );
-                if (!correct.includes(word)) {
-                    const adjustedSuggestions = correct.filter(word => 
-                        word.length > 1
-                    )
-                    console.log(adjustedSuggestions);
-                }
-            }
-        }, 300);
-    }
+            console.log(words);
+        }, 150)
+    };
 
     function handleKdInput() {
         clearTimeout(kdTimer);
-
+        
         kdTimer = setTimeout(() => {
-            console.log("User stopped typing. Checking k-D tree..");
+            console.log("User stopped typing. Checking k-D tree..")
             let words = splitIntoWords(KdText);
             console.log(words);
-        }, 300);
-    }
+        }, 150)
+    };
 
     /**
      * For a given input string, splits into an array of words.
-     * Words are delimited by spaces.
+     * Words are delimited by spaces. 
      * Words can contain punctuation marks, UNLESS they are the last character;
      * e.g.: "The r.ed fox" 'r.ed' is a word
      * but in "The red. Fox" 'red.' is not the word; 'red' is.
@@ -92,13 +79,7 @@
             let endsInQuestionMark = words[c].endsWith("?");
             let endsInExclamationMark = words[c].endsWith("!");
 
-            let endsInPunctuation =
-                endsInPeriod ||
-                endsInComma ||
-                endsInSemicolon ||
-                endsInColon ||
-                endsInQuestionMark ||
-                endsInExclamationMark;
+            let endsInPunctuation = endsInPeriod || endsInComma || endsInSemicolon || endsInColon || endsInQuestionMark || endsInExclamationMark;
             if (endsInPunctuation) {
                 words[c] = words[c].slice(0, -1);
             }
@@ -116,28 +97,20 @@
 <section id="body">
     <div class="impl">
         <h2>Trie</h2>
-        <textarea
-            bind:value={trieText}
-            spellcheck="false"
-            autocomplete="off"
-            autocapitalize="off"
-            oninput={handleTrieInput}
-        ></textarea>
+        {#if $trieEditor}
+            <EditorContent class="editor" editor={$trieEditor} />
+        {/if}
     </div>
     <div class="impl">
         <h2>K-d Tree</h2>
-        <textarea
-            bind:value={KdText}
-            spellcheck="false"
-            autocomplete="off"
-            autocapitalize="off"
-            oninput={handleKdInput}
-        ></textarea>
+        {#if $kdEditor}
+            <EditorContent class="editor" editor={$kdEditor} />
+        {/if}
     </div>
 </section>
 
 <style>
-    #body {
+    #body { 
         width: 100vw;
         height: 100vh;
         display: flex;
@@ -148,34 +121,27 @@
     }
 
     h2 {
-        font-family:
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            Roboto,
-            Oxygen,
-            Ubuntu,
-            Cantarell,
-            "Open Sans",
-            "Helvetica Neue",
-            sans-serif;
+        font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
         font-weight: bold;
     }
 
-    textarea {
-        resize: none;
+    :global(.editor) {
         width: clamp(45vw, 500px, 80vw);
         height: clamp(40vh, 500px, 60vh);
         border: solid rgba(0, 0, 0, 0.8) 1px;
         border-radius: 7px;
         box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.4);
-        transition: 0.3s;
         padding: 10px;
-        font-size: 1rem;
+        overflow-y: auto;
+        font-family: monospace;
     }
 
-    textarea:hover {
-        box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.5);
+    :global(.tiptap:focus) {
+        outline: none;
+    }
+    
+    :global(.tiptap) {
+        height: 100%;
+        font-size: 1rem;
     }
 </style>
