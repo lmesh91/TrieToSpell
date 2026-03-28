@@ -15,7 +15,6 @@
 
   // trie
   import { Trie } from "$lib/trie/trie.ts";
-  import { wordListToArray } from "$lib/util";
   let props = $props();
   let trie = new Trie(props.data.content);
 
@@ -200,9 +199,6 @@
         HighlightTyposExtensionTrie,
         TypoMenuPlugin
       ],
-      onUpdate: ({ editor }) => {
-        handleTrieInput();
-      },
       content: "Hello, world!",
       editorProps: {
         attributes: {
@@ -242,10 +238,10 @@
     });
 
     kdEditor = createEditor({
-      extensions: [StarterKit],
-      onUpdate: ({ editor }) => {
-        handleKdInput();
-      },
+      extensions: [
+        StarterKit,
+        TypoMenuPlugin
+      ],
       content: "Hello, world!",
       editorProps: {
         attributes: {
@@ -256,38 +252,6 @@
       },
     });
   });
-
-  let trieTimer;
-  let kdTimer;
-
-  function handleTrieInput() {
-    clearTimeout(trieTimer);
-
-    trieTimer = setTimeout(() => {
-      console.log("User stopped typing. Checking trie..");
-    //   let words = splitIntoWords(trieText);
-    //   for (let word of words) {
-        // word = word.toLowerCase();
-        // const correct = [...new Set(trie.autocorrect(word))];
-        // correct.sort((a, b) => Math.abs(word.length - a.length) - Math.abs(word.length - b.length));
-        // correct.sort(
-        //   (a, b) => numDifferentChars(word, a) - numDifferentChars(word, b),
-        // );
-        // if (!correct.includes(word)) {
-        //   const adjustedSuggestions = correct.filter((word) => word.length > 1);
-        //   console.log(adjustedSuggestions);
-        // }
-    //   }
-    }, 300);
-  }
-
-  function handleKdInput() {
-    clearTimeout(kdTimer);
-
-    kdTimer = setTimeout(() => {
-      console.log("User stopped typing. Checking k-D tree..");
-    }, 300);
-  }
 
   /**
    * For a given input string, splits into an array of words.
@@ -354,7 +318,6 @@
     <h2>K-d Tree</h2>
     {#if $kdEditor}
       <EditorContent class="editor" editor={$kdEditor} />
-      <BubbleMenu editor={$kdEditor} />
     {/if}
   </div>
 </section>
