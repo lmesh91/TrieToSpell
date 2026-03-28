@@ -93,6 +93,7 @@ function _nn_search_kd_tree(node: KDNode | undefined, range: RangeVec, word: Wor
 export class KDTree {
     head?: KDNode;
 
+    // Precondition: all words in the array are unique
     constructor(words: string[]) {
         // Convert strings to Words
         const word_vecs : Word[] = words.map(word => encode_word(word));

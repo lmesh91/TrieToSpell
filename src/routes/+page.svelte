@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, tick } from "svelte";
 
   // Setup editor TipTap
   import {
@@ -15,8 +15,9 @@
   import { numDifferentChars, splitIntoWords } from "$lib/util.ts";
 
   let props = $props();
-  let Kd = new KDTree(props.data.content);
+  let Kd = null;
   let trie = new Trie(props.data.content);
+  let Kd_built = false;
 
   // Custom trie editor extension for detecting incorrect words
   const HighlightTyposExtensionTrie = Extension.create({
@@ -91,7 +92,7 @@
             let typos = [];
             let wordIndices = splitIntoWords(doc.textContent);
             for (let {startIndex, endIndex, word} of wordIndices) {
-              if (Kd.search(word.toLowerCase()) === false) {
+              if (Kd_built && Kd.search(word.toLowerCase()) === false) {
                   typos.push(
                     Decoration.inline(startIndex + 1, endIndex + 1, {
                       class: "typo",
@@ -168,7 +169,9 @@
                     e.stopPropagation();
                     
                     trie.insert(word);
-                    Kd.insert(word);
+                    if (Kd_built) {
+                      Kd.insert(word);
+                    };
 
                     view.dispatch(
                       view.state.tr
@@ -218,7 +221,7 @@
   let trieEditor = $state();
   let kdEditor = $state();
 
-  onMount(() => {
+  onMount(async () => {
     trieEditor = createEditor({
       extensions: [
         StarterKit,
@@ -279,7 +282,7 @@
         handleClick: (view, pos, event) => {
           const target = event.target as HTMLElement;
 
-          if (target.classList.contains("typo")) {
+          if (Kd_built && target.classList.contains("typo")) {
             const word = target.innerText;
             
             const rawSuggestions = [...new Set(Kd.autocorrect(word.toLowerCase()))];
@@ -307,6 +310,11 @@
         },
       },
     });
+    // Wait for the browser to finish loading, since
+    // constructing the kd-tree takes a few seconds
+    await new Promise((r) => setTimeout(r, 0));
+    Kd = new KDTree(props.data.content);
+    Kd_built = true;
   });
 </script>
 
