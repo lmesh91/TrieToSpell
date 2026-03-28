@@ -4,9 +4,7 @@
   // Setup editor TipTap
   import {
     createEditor,
-    Editor,
     EditorContent,
-    BubbleMenu,
   } from "svelte-tiptap";
   import StarterKit from "@tiptap/starter-kit";
   import { Extension } from "@tiptap/core";
