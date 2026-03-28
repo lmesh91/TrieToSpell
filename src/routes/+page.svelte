@@ -1,4 +1,5 @@
 <script lang="ts">
+<<<<<<< HEAD
   import { onMount } from "svelte";
 
   // Setup editor TipTap
@@ -12,6 +13,17 @@
   import { Extension } from "@tiptap/core";
   import { Plugin, TextSelection } from "@tiptap/pm/state"
   import { Decoration, DecorationSet } from '@tiptap/pm/view';
+=======
+    import { KDTree } from "$lib/kd-tree/kd.ts";
+    import { Trie } from "$lib/trie/trie.ts";
+
+    let props = $props();
+    let trie = new Trie(props.data.content);
+    let trieText = $state("");
+    // TODO: build the tree asynchronously or client-side
+    let Kd = new KDTree(props.data.content);
+    let KdText = $state("");
+>>>>>>> main
 
   // trie
   import { Trie } from "$lib/trie/trie.ts";
@@ -22,6 +34,7 @@
   const HighlightTyposExtensionTrie = Extension.create({
     name: "highlightTyposTrie",
 
+<<<<<<< HEAD
     addProseMirrorPlugins() {
         const typoPlugin = new Plugin({
           state: {
@@ -31,6 +44,51 @@
             apply(tr, set) {
                 if (tr.docChanged) {
                     return createTypos(tr.doc);
+=======
+        for (let c = 0; c < b.length; c++) {
+            const char = b[c];
+            mapB.set(char, (mapB.get(char) ?? 0) + 1);
+        }
+
+        let count = 0;
+
+        mapA.forEach((value, key, map) => {
+            const bValue = mapB.get(key) ?? 0;
+            count += Math.abs(value - bValue);
+        });
+
+        mapB.forEach((value, key, map) => {
+            if (!mapA.has(key)) {
+                count += value;
+            }
+        });
+
+        return count;
+    }
+
+    let trieTimer;
+    let kdTimer;
+
+    function handleTrieInput() {
+        clearTimeout(trieTimer);
+
+        trieTimer = setTimeout(() => {
+            console.log("User stopped typing. Checking trie..");
+            let words = splitIntoWords(trieText);
+            for (let word of words) {
+                word = word.toLowerCase();
+                const correct = [...new Set(trie.autocorrect(word, word))];
+                //correct.sort((a, b) => Math.abs(word.length - a.length) - Math.abs(word.length - b.length));
+                correct.sort(
+                    (a, b) =>
+                        numDifferentChars(word, a) - numDifferentChars(word, b),
+                );
+                if (!correct.includes(word)) {
+                    const adjustedSuggestions = correct.filter(
+                        (word) => word.length > 1,
+                    );
+                    console.log(adjustedSuggestions);
+>>>>>>> main
                 }
 
                 return set.map(tr.mapping, tr.doc);
@@ -43,6 +101,7 @@
           },
         })
 
+<<<<<<< HEAD
         function createTypos(doc) {
             let typos = [];
               let wordIndices = splitIntoWords(doc.textContent);
@@ -56,6 +115,55 @@
                 }
               }
               return DecorationSet.create(doc, typos);
+=======
+        kdTimer = setTimeout(() => {
+            console.log("User stopped typing. Checking k-D tree..");
+            let words = splitIntoWords(KdText);
+            for (let word of words) {
+                word = word.toLowerCase();
+                if (!Kd.search(word)) {
+                    console.log(Kd.autocorrect(word));
+                }
+            }
+        }, 300);
+    }
+
+    /**
+     * For a given input string, splits into an array of words.
+     * Words are delimited by spaces.
+     * Words can contain punctuation marks, UNLESS they are the last character;
+     * e.g.: "The r.ed fox" 'r.ed' is a word
+     * but in "The red. Fox" 'red.' is not the word; 'red' is.
+     * This helps correctly identify typos.
+     * @param inputString
+     */
+    function splitIntoWords(inputString) {
+        let words = inputString.split(" ");
+        for (let c = 0; c < words.length; c++) {
+            let endsInPeriod = words[c].endsWith(".");
+            let endsInComma = words[c].endsWith(",");
+            let endsInSemicolon = words[c].endsWith(";");
+            let endsInColon = words[c].endsWith(":");
+            let endsInQuestionMark = words[c].endsWith("?");
+            let endsInExclamationMark = words[c].endsWith("!");
+
+            let endsInPunctuation =
+                endsInPeriod ||
+                endsInComma ||
+                endsInSemicolon ||
+                endsInColon ||
+                endsInQuestionMark ||
+                endsInExclamationMark;
+            if (endsInPunctuation) {
+                words[c] = words[c].slice(0, -1);
+            }
+
+            // First period already cut out... (or just a .. ellipsis)
+            let endsInEllipses = words[c].endsWith("..");
+            if (endsInEllipses) {
+                words[c] = words[c].slice(0, -2);
+            }
+>>>>>>> main
         }
         return [typoPlugin];
     },
