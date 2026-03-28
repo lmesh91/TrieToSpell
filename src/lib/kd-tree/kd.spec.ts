@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import { LENGTH_FAC, partition_words_dim, encode_word } from './util';
 import { WORD_VEC_SIZE } from './types';
+import { KDTree } from './kd';
 
 describe('encode_word', () => {
     test('example', () => {
@@ -80,4 +81,34 @@ describe('partition_words_dim', () => {
     })
 })
 
-// TODO: write tests for partition_words and the tree itself
+describe('kd_tree', () => {
+    test('empty', () => {
+        let empty = new KDTree([]);
+        expect(empty.search("something")).toBe(false);
+        expect(empty.autocorrect("something").length).toBe(0);
+        empty.insert("something");
+        expect(empty.search("something")).toBe(true);
+    })
+    let kd_words = ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+    let kd = new KDTree(kd_words);
+    test('search', () => {
+        for (let i = 0; i < kd_words.length; i++) {
+            expect(kd.search(kd_words[i])).toBe(true);
+        };
+        expect(kd.search("eleven")).toBe(false);
+        expect(kd.search("on")).toBe(false);
+    })
+    test('insert', () => {
+        kd.insert("ten"); // Should not modify the tree
+        kd.insert("eleven");
+        kd.insert("twelve");
+        expect(kd.search("ten")).toBe(true);
+        expect(kd.search("eleven")).toBe(true);
+        expect(kd.search("twelve")).toBe(true);
+    })
+    test('autocorrect', () => {
+        expect(kd.autocorrect("tem")[0][0]).toBe("ten");
+        expect(kd.autocorrect("sedan")[0][0]).toBe("seven");
+        expect(kd.autocorrect("pzbvw").length).toBe(0);
+    })
+})

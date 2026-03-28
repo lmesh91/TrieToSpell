@@ -43,7 +43,7 @@ function _search_kd_tree(node: KDNode | undefined, word: Word) : boolean {
 
 // Helper function that inserts a word in a KDTree
 function _insert_kd_tree(node: KDNode | undefined, word: Word) : KDNode | undefined {
-    if (node == undefined) return undefined;
+    if (node == undefined) return word;
     if ('vec' in node) { // of type Word
         if ((node as Word).str == word.str) {
             return node; // Word already in tree

@@ -50,16 +50,12 @@ export function encode_word(word: string) : Word {
     return {str: word, vec: vec}
 }
 
-// Splits a list of words into two parts; one where a given dimension is at most the median,
-// and one where it is greater than the median.
-export function partition_words_dim(words: Word[], dim: number, start: number, end: number) : [Word[], number] | null {
-    // Check for invalid dimension
-    if (dim % 1 != 0 || dim < 0 || dim >= WORD_VEC_SIZE) {
-        return null;
-    }
-    // Sort by the given dimension
-    // A potential improvement here is creating a sorting algorithm
-    // to do this in-place, and utilize the limited range of the values
+
+// Sort by the given dimension
+// A potential improvement here is creating a sorting algorithm
+// to do this in-place, and utilize the limited range of the values
+// Additionally, partition_words/partition_words_dim could be refactored to do everything in place
+function sort_by(words: Word[], dim: number, start: number, end: number): undefined {
     const subarray = words.slice(start, end);
     subarray.sort((a, b) => a.vec[dim] - b.vec[dim]);
     
@@ -67,6 +63,16 @@ export function partition_words_dim(words: Word[], dim: number, start: number, e
     for (let i = 0; i < subarray.length; i++) {
         words[start + i] = subarray[i];
     }
+}
+
+// Splits a list of words into two parts; one where a given dimension is at most the median,
+// and one where it is greater than the median.
+export function partition_words_dim(words: Word[], dim: number, start: number, end: number) : [Word[], number] | null {
+    // Check for invalid dimension
+    if (dim % 1 != 0 || dim < 0 || dim >= WORD_VEC_SIZE) {
+        return null;
+    }
+    sort_by(words, dim, start, end);
     // Determine partition location
     const partition = Math.floor((start+end-1) / 2);
     // If the median value occurs multiple times, we want
@@ -102,12 +108,14 @@ export function partition_words(words: Word[], start: number, end: number) : [nu
         partitions[i] = partition_words_dim(words, i, start, end);
         const accuracy = Math.max(partitions[i][1]-start,end-partitions[i][1])
         if (accuracy <= PARTITION_QUALITY * (end-start)) {
+            sort_by(words, i, start, end);
             return [i, partitions[i]];
         } else if (accuracy < best_accuracy) {
             best_partition = i;
             best_accuracy = accuracy;
         }
     }
+    sort_by(words, best_partition, start, end);
     return [best_partition, partitions[best_partition]]
 }
 
