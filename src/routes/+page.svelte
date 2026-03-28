@@ -10,17 +10,18 @@
   } from "svelte-tiptap";
   import StarterKit from "@tiptap/starter-kit";
   import { Extension } from "@tiptap/core";
-  import { Plugin } from "@tiptap/pm/state"
+  import { Plugin, TextSelection } from "@tiptap/pm/state"
   import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
   // trie
   import { Trie } from "$lib/trie/trie.ts";
+  import { wordListToArray } from "$lib/util";
   let props = $props();
   let trie = new Trie(props.data.content);
 
   // Custom trie editor extension for detecting incorrect words
-  const HighlightTyposExtension = Extension.create({
-    name: "highlightTypos",
+  const HighlightTyposExtensionTrie = Extension.create({
+    name: "highlightTyposTrie",
 
     addProseMirrorPlugins() {
         const typoPlugin = new Plugin({
@@ -60,6 +61,99 @@
         return [typoPlugin];
     },
   });
+  
+  // Custom extension for menu with suggestion opening
+  const TypoMenuPlugin = Extension.create({
+    name: "typoMenu",
+
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          state: {
+            init() { 
+              return {
+                active: false,
+                pos: null,
+                word: "",
+                suggestions: []
+              } ;
+            },
+            apply(tr, value) {
+              const openMeta = tr.getMeta("openTypoMenu");
+              const closeMeta = tr.getMeta("closeTypoMenu");
+              if (openMeta) {
+                return {active: true, ...openMeta};
+              }
+              if (closeMeta) return { active: false, pos: null, word: "", suggestions: [] };
+              return value;
+            }
+          },
+          props: {
+            decorations(state) {
+              const { active, pos, word, suggestions } = this.getState(state);
+              
+              if (!active) return DecorationSet.empty;
+
+              return DecorationSet.create(state.doc, [
+                Decoration.widget(pos, (view) => {
+                  const anchor = document.createElement("span");
+                  anchor.style.position = "relative";
+                  anchor.style.width = "0";
+                  anchor.style.display = "inline-block";
+                  anchor.setAttribute("contenteditable", "false");
+
+                  const menu = document.createElement("div");
+                  menu.classList.add("autocorrect-menu");
+                  menu.setAttribute("contenteditable", "false");
+
+                  const { left } = view.coordsAtPos(pos);
+                  const editorWidth = view.dom.clientWidth;
+
+                  if (left > editorWidth * 0.7) {
+                    menu.style.right = "0";
+                    menu.style.left = "auto";
+                  } else {
+                    menu.style.left = "0";
+                    menu.style.right = "auto";
+                  }
+
+                  suggestions.forEach((suggestion) => {
+                    const button = document.createElement("button");
+                    button.className = "suggestion-button";
+                    button.innerText = suggestion;
+
+                    button.onmousedown = (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      
+                      const { tr } = view.state;
+                      const from = pos - word.length;
+                      const to = pos;
+
+                      view.dispatch(
+                      view.state.tr
+                        .insertText(suggestion, from, to)
+                        .setMeta("closeTypoMenu", true)
+                      );
+                      view.focus();
+                    };
+                    menu.appendChild(button);
+                  })
+                  anchor.appendChild(menu)
+                  return anchor;
+                }, {
+                  side: 1,
+                  stopEvent: () => true
+                })
+              ]);
+            }
+          }
+        })
+      ]
+    }
+  })
+  
+  
 
   /**
    * Returns the number of different characters between two strings.
@@ -99,17 +193,14 @@
   let trieEditor = $state();
   let kdEditor = $state();
 
-  let trieText = $state("");
-  let KdText = $state("");
-
   onMount(() => {
     trieEditor = createEditor({
       extensions: [
         StarterKit,
-        HighlightTyposExtension
+        HighlightTyposExtensionTrie,
+        TypoMenuPlugin
       ],
       onUpdate: ({ editor }) => {
-        trieText = editor.getText();
         handleTrieInput();
       },
       content: "Hello, world!",
@@ -119,13 +210,40 @@
           autocomplete: "off",
           autocapitalize: "off",
         },
+        handleClick: (view, pos, event) => {
+          const target = event.target as HTMLElement;
+
+          if (target.classList.contains("typo")) {
+            const word = target.innerText;
+            
+            const rawSuggestions = [...new Set(trie.autocorrect(word.toLowerCase()))];
+
+            let suggestions = rawSuggestions
+              .sort((a, b) => numDifferentChars(word, a) - numDifferentChars(word, b))
+              .slice(0, 5);
+
+            const startPos = view.posAtDOM(target, 0);
+            const endPos = startPos + word.length;
+
+            view.dispatch(
+              view.state.tr.setMeta("openTypoMenu", {
+                pos: endPos,
+                word,
+                suggestions
+              })
+            );
+
+            return true;
+          }
+
+          return false;
+        },
       },
     });
 
     kdEditor = createEditor({
       extensions: [StarterKit],
       onUpdate: ({ editor }) => {
-        KdText = editor.getText();
         handleKdInput();
       },
       content: "Hello, world!",
@@ -168,8 +286,6 @@
 
     kdTimer = setTimeout(() => {
       console.log("User stopped typing. Checking k-D tree..");
-      let words = splitIntoWords(KdText);
-      console.log(words);
     }, 300);
   }
 
@@ -223,7 +339,6 @@
         }
     }
 
-    console.log(wordIndices)
     return wordIndices;
   }
 </script>
@@ -233,11 +348,6 @@
     <h2>Trie</h2>
     {#if $trieEditor}
       <EditorContent class="editor" editor={$trieEditor} />
-      <BubbleMenu class="autocorrect-menu" editor={$trieEditor}>
-        <p>Suggestions:</p>
-        <button> S1 </button>
-        <button> S2 </button>
-      </BubbleMenu>
     {/if}
   </div>
   <div class="impl">
@@ -267,6 +377,7 @@
     border-radius: 4px;
     background: rgba(255, 0, 0, 0.1);
     padding: 2px;
+    position: relative;
   }
 
   h2 {
@@ -294,6 +405,7 @@
     padding: 10px;
     overflow-y: auto;
     font-family: monospace;
+    line-height: 2.0;
   }
 
   :global(.tiptap:focus) {
@@ -306,18 +418,22 @@
   }
 
   :global(.autocorrect-menu) {
+    position: absolute;
+    top: 1em;
     border: solid 1px black;
     border-radius: 4px;
     background: white;
     padding: 2px;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    padding-bottom: 0;
   }
 
-  button {
+  :global(button) {
     background: none;
     border: none;
     cursor: pointer;
+    padding: 2px;
+    border-bottom: solid 1px black;
   }
 </style>
