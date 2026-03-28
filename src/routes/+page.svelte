@@ -343,8 +343,8 @@
     let wordIndices = [];
     const hasAlphaAhead = /^[^ ]*\w/;
     for (let c = 0; c < inputString.length; c++) {
-      let isPunctuation = /[.,;:!??\-_]/.test(inputString[c]);
-      let isSpace = inputString[c] === " ";
+      let isPunctuation = /[.,;:!??\-_(){}"']/.test(inputString[c]);
+      let isSpace = inputString[c] === " " || inputString[c] === "\n";
 
       const nextChar = inputString[c+1];
       const isTerminal = !nextChar || nextChar === " ";
