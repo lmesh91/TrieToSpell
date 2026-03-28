@@ -1,5 +1,4 @@
 <script lang="ts">
-<<<<<<< HEAD
   import { onMount } from "svelte";
 
   // Setup editor TipTap
@@ -13,28 +12,18 @@
   import { Extension } from "@tiptap/core";
   import { Plugin, TextSelection } from "@tiptap/pm/state"
   import { Decoration, DecorationSet } from '@tiptap/pm/view';
-=======
-    import { KDTree } from "$lib/kd-tree/kd.ts";
-    import { Trie } from "$lib/trie/trie.ts";
-
-    let props = $props();
-    let trie = new Trie(props.data.content);
-    let trieText = $state("");
-    // TODO: build the tree asynchronously or client-side
-    let Kd = new KDTree(props.data.content);
-    let KdText = $state("");
->>>>>>> main
-
-  // trie
+  import { KDTree } from "$lib/kd-tree/kd.ts";
   import { Trie } from "$lib/trie/trie.ts";
+
   let props = $props();
+  // TODO: build the tree asynchronously or client-side
+  let Kd = new KDTree(props.data.content);
   let trie = new Trie(props.data.content);
 
   // Custom trie editor extension for detecting incorrect words
   const HighlightTyposExtensionTrie = Extension.create({
     name: "highlightTyposTrie",
 
-<<<<<<< HEAD
     addProseMirrorPlugins() {
         const typoPlugin = new Plugin({
           state: {
@@ -44,51 +33,6 @@
             apply(tr, set) {
                 if (tr.docChanged) {
                     return createTypos(tr.doc);
-=======
-        for (let c = 0; c < b.length; c++) {
-            const char = b[c];
-            mapB.set(char, (mapB.get(char) ?? 0) + 1);
-        }
-
-        let count = 0;
-
-        mapA.forEach((value, key, map) => {
-            const bValue = mapB.get(key) ?? 0;
-            count += Math.abs(value - bValue);
-        });
-
-        mapB.forEach((value, key, map) => {
-            if (!mapA.has(key)) {
-                count += value;
-            }
-        });
-
-        return count;
-    }
-
-    let trieTimer;
-    let kdTimer;
-
-    function handleTrieInput() {
-        clearTimeout(trieTimer);
-
-        trieTimer = setTimeout(() => {
-            console.log("User stopped typing. Checking trie..");
-            let words = splitIntoWords(trieText);
-            for (let word of words) {
-                word = word.toLowerCase();
-                const correct = [...new Set(trie.autocorrect(word, word))];
-                //correct.sort((a, b) => Math.abs(word.length - a.length) - Math.abs(word.length - b.length));
-                correct.sort(
-                    (a, b) =>
-                        numDifferentChars(word, a) - numDifferentChars(word, b),
-                );
-                if (!correct.includes(word)) {
-                    const adjustedSuggestions = correct.filter(
-                        (word) => word.length > 1,
-                    );
-                    console.log(adjustedSuggestions);
->>>>>>> main
                 }
 
                 return set.map(tr.mapping, tr.doc);
@@ -101,12 +45,12 @@
           },
         })
 
-<<<<<<< HEAD
         function createTypos(doc) {
             let typos = [];
               let wordIndices = splitIntoWords(doc.textContent);
               for (let {startIndex, endIndex, word} of wordIndices) {
-                if (trie.search(word.toLowerCase()) == undefined) {
+                let wordSearch = trie.search(word.toLowerCase());
+                if (wordSearch == undefined || wordSearch.isWord === false) {
                   typos.push(
                     Decoration.inline(startIndex + 1, endIndex + 1, {
                       class: "typo",
@@ -115,55 +59,49 @@
                 }
               }
               return DecorationSet.create(doc, typos);
-=======
-        kdTimer = setTimeout(() => {
-            console.log("User stopped typing. Checking k-D tree..");
-            let words = splitIntoWords(KdText);
-            for (let word of words) {
-                word = word.toLowerCase();
-                if (!Kd.search(word)) {
-                    console.log(Kd.autocorrect(word));
+        }
+        return [typoPlugin];
+    },
+  });
+
+  // Custom kd tree extension for detecting incorrect words
+  const HighlightTyposExtensionKd = Extension.create({
+    name: "highlightTyposKd",
+
+    addProseMirrorPlugins() {
+        const typoPlugin = new Plugin({
+          state: {
+            init(_, { doc }) {
+                return createTypos(doc);
+            },
+            apply(tr, set) {
+                if (tr.docChanged) {
+                    return createTypos(tr.doc);
                 }
-            }
-        }, 300);
-    }
 
-    /**
-     * For a given input string, splits into an array of words.
-     * Words are delimited by spaces.
-     * Words can contain punctuation marks, UNLESS they are the last character;
-     * e.g.: "The r.ed fox" 'r.ed' is a word
-     * but in "The red. Fox" 'red.' is not the word; 'red' is.
-     * This helps correctly identify typos.
-     * @param inputString
-     */
-    function splitIntoWords(inputString) {
-        let words = inputString.split(" ");
-        for (let c = 0; c < words.length; c++) {
-            let endsInPeriod = words[c].endsWith(".");
-            let endsInComma = words[c].endsWith(",");
-            let endsInSemicolon = words[c].endsWith(";");
-            let endsInColon = words[c].endsWith(":");
-            let endsInQuestionMark = words[c].endsWith("?");
-            let endsInExclamationMark = words[c].endsWith("!");
+                return set.map(tr.mapping, tr.doc);
+            },
+          },
+          props: {
+            decorations(state) {
+              return typoPlugin.getState(state);
+            },
+          },
+        })
 
-            let endsInPunctuation =
-                endsInPeriod ||
-                endsInComma ||
-                endsInSemicolon ||
-                endsInColon ||
-                endsInQuestionMark ||
-                endsInExclamationMark;
-            if (endsInPunctuation) {
-                words[c] = words[c].slice(0, -1);
+        function createTypos(doc) {
+            let typos = [];
+            let wordIndices = splitIntoWords(doc.textContent);
+            for (let {startIndex, endIndex, word} of wordIndices) {
+              if (Kd.search(word.toLowerCase()) === false) {
+                  typos.push(
+                    Decoration.inline(startIndex + 1, endIndex + 1, {
+                      class: "typo",
+                    }),
+                  );
+              }
             }
-
-            // First period already cut out... (or just a .. ellipsis)
-            let endsInEllipses = words[c].endsWith("..");
-            if (endsInEllipses) {
-                words[c] = words[c].slice(0, -2);
-            }
->>>>>>> main
+            return DecorationSet.create(doc, typos);
         }
         return [typoPlugin];
     },
@@ -191,7 +129,7 @@
               if (openMeta) {
                 return {active: true, ...openMeta};
               }
-              if (closeMeta) return { active: false, pos: null, word: "", suggestions: [] };
+              if (closeMeta || tr.docChanged) return { active: false, pos: null, word: "", suggestions: [] };
               return value;
             }
           },
@@ -348,6 +286,7 @@
     kdEditor = createEditor({
       extensions: [
         StarterKit,
+        HighlightTyposExtensionKd,
         TypoMenuPlugin
       ],
       content: "Hello, world!",
@@ -356,6 +295,35 @@
           spellcheck: "false",
           autocomplete: "off",
           autocapitalize: "off",
+        },
+        handleClick: (view, pos, event) => {
+          const target = event.target as HTMLElement;
+
+          if (target.classList.contains("typo")) {
+            const word = target.innerText;
+            
+            const rawSuggestions = [...new Set(Kd.autocorrect(word.toLowerCase()))];
+
+            let suggestions = rawSuggestions
+              .sort((a, b) => a[1] - b[1])
+              .slice(0, 5)
+              .map(([suggestion]) => suggestion);
+
+            const startPos = view.posAtDOM(target, 0);
+            const endPos = startPos + word.length;
+
+            view.dispatch(
+              view.state.tr.setMeta("openTypoMenu", {
+                pos: endPos,
+                word,
+                suggestions
+              })
+            );
+
+            return true;
+          }
+
+          return false;
         },
       },
     });
@@ -476,7 +444,7 @@
     padding: 10px;
     overflow-y: auto;
     font-family: monospace;
-    line-height: 2.0;
+    line-height: 2;
   }
 
   :global(.tiptap:focus) {
