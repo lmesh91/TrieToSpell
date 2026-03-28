@@ -46,12 +46,14 @@
         function createTypos(doc) {
             let typos = [];
               let wordIndices = splitIntoWords(doc.textContent);
-              for (let {startIndex, endIndex} of wordIndices) {
-                typos.push(
-                  Decoration.inline(startIndex + 1, endIndex + 1, {
-                    style: "background: red",
-                  }),
-                );
+              for (let {startIndex, endIndex, word} of wordIndices) {
+                if (trie.search(word.toLowerCase()) == undefined) {
+                  typos.push(
+                    Decoration.inline(startIndex + 1, endIndex + 1, {
+                      class: "typo",
+                    }),
+                  );
+                }
               }
               return DecorationSet.create(doc, typos);
         }
@@ -256,6 +258,15 @@
     justify-content: space-evenly;
     align-items: center;
     flex-wrap: wrap;
+  }
+
+  :global(.typo) {
+    text-decoration: underline wavy red;
+    border: solid 1px red;
+    cursor: pointer;
+    border-radius: 4px;
+    background: rgba(255, 0, 0, 0.1);
+    padding: 2px;
   }
 
   h2 {
