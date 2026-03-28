@@ -1,189 +1,498 @@
 <script lang="ts">
-    import { KDTree } from "$lib/kd-tree/kd.ts";
-    import { Trie } from "$lib/trie/trie.ts";
+  import { onMount } from "svelte";
 
-    let props = $props();
-    let trie = new Trie(props.data.content);
-    let trieText = $state("");
-    // TODO: build the tree asynchronously or client-side
-    let Kd = new KDTree(props.data.content);
-    let KdText = $state("");
+  // Setup editor TipTap
+  import {
+    createEditor,
+    EditorContent,
+  } from "svelte-tiptap";
+  import StarterKit from "@tiptap/starter-kit";
+  import { Extension } from "@tiptap/core";
+  import { Plugin, TextSelection } from "@tiptap/pm/state"
+  import { Decoration, DecorationSet } from '@tiptap/pm/view';
+  import { KDTree } from "$lib/kd-tree/kd.ts";
+  import { Trie } from "$lib/trie/trie.ts";
 
-    function numDifferentChars(a, b) {
-        const mapA = new Map<string, number>();
-        const mapB = new Map<string, number>();
+  let props = $props();
+  let Kd = new KDTree(props.data.content);
+  let trie = new Trie(props.data.content);
 
-        for (let c = 0; c < a.length; c++) {
-            const char = a[c];
-            mapA.set(char, (mapA.get(char) ?? 0) + 1);
+  // Custom trie editor extension for detecting incorrect words
+  const HighlightTyposExtensionTrie = Extension.create({
+    name: "highlightTyposTrie",
+
+    addProseMirrorPlugins() {
+        const typoPlugin = new Plugin({
+          state: {
+            init(_, { doc }) {
+                return createTypos(doc);
+            },
+            apply(tr, set) {
+                if (tr.docChanged) {
+                    return createTypos(tr.doc);
+                }
+
+                return set.map(tr.mapping, tr.doc);
+            },
+          },
+          props: {
+            decorations(state) {
+              return typoPlugin.getState(state);
+            },
+          },
+        })
+
+        function createTypos(doc) {
+            let typos = [];
+              let wordIndices = splitIntoWords(doc.textContent);
+              for (let {startIndex, endIndex, word} of wordIndices) {
+                let wordSearch = trie.search(word.toLowerCase());
+                if (wordSearch == undefined || wordSearch.isWord === false) {
+                  typos.push(
+                    Decoration.inline(startIndex + 1, endIndex + 1, {
+                      class: "typo",
+                    }),
+                  );
+                }
+              }
+              return DecorationSet.create(doc, typos);
         }
+        return [typoPlugin];
+    },
+  });
 
-        for (let c = 0; c < b.length; c++) {
-            const char = b[c];
-            mapB.set(char, (mapB.get(char) ?? 0) + 1);
-        }
+  // Custom kd tree extension for detecting incorrect words
+  const HighlightTyposExtensionKd = Extension.create({
+    name: "highlightTyposKd",
 
-        let count = 0;
+    addProseMirrorPlugins() {
+        const typoPlugin = new Plugin({
+          state: {
+            init(_, { doc }) {
+                return createTypos(doc);
+            },
+            apply(tr, set) {
+                if (tr.docChanged) {
+                    return createTypos(tr.doc);
+                }
 
-        mapA.forEach((value, key, map) => {
-            const bValue = mapB.get(key) ?? 0;
-            count += Math.abs(value - bValue);
-        });
+                return set.map(tr.mapping, tr.doc);
+            },
+          },
+          props: {
+            decorations(state) {
+              return typoPlugin.getState(state);
+            },
+          },
+        })
 
-        mapB.forEach((value, key, map) => {
-            if (!mapA.has(key)) {
-                count += value;
+        function createTypos(doc) {
+            let typos = [];
+            let wordIndices = splitIntoWords(doc.textContent);
+            for (let {startIndex, endIndex, word} of wordIndices) {
+              if (Kd.search(word.toLowerCase()) === false) {
+                  typos.push(
+                    Decoration.inline(startIndex + 1, endIndex + 1, {
+                      class: "typo",
+                    }),
+                  );
+              }
             }
-        });
+            return DecorationSet.create(doc, typos);
+        }
+        return [typoPlugin];
+    },
+  });
+  
+  // Custom extension for menu with suggestion opening
+  const TypoMenuPlugin = Extension.create({
+    name: "typoMenu",
 
-        return count;
-    }
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          state: {
+            init() { 
+              return {
+                active: false,
+                pos: null,
+                word: "",
+                suggestions: []
+              } ;
+            },
+            apply(tr, value) {
+              const openMeta = tr.getMeta("openTypoMenu");
+              const closeMeta = tr.getMeta("closeTypoMenu");
+              if (openMeta) {
+                return {active: true, ...openMeta};
+              }
+              if (closeMeta || tr.docChanged) return { active: false, pos: null, word: "", suggestions: [] };
+              return value;
+            }
+          },
+          props: {
+            decorations(state) {
+              const { active, pos, word, suggestions } = this.getState(state);
+              
+              if (!active) return DecorationSet.empty;
 
-    let trieTimer;
-    let kdTimer;
+              return DecorationSet.create(state.doc, [
+                Decoration.widget(pos, (view) => {
+                  const anchor = document.createElement("span");
+                  anchor.style.position = "relative";
+                  anchor.style.width = "0";
+                  anchor.style.display = "inline-block";
+                  anchor.setAttribute("contenteditable", "false");
 
-    function handleTrieInput() {
-        clearTimeout(trieTimer);
+                  const menu = document.createElement("div");
+                  menu.classList.add("autocorrect-menu");
+                  menu.setAttribute("contenteditable", "false");
 
-        trieTimer = setTimeout(() => {
-            console.log("User stopped typing. Checking trie..");
-            let words = splitIntoWords(trieText);
-            for (let word of words) {
-                word = word.toLowerCase();
-                const correct = [...new Set(trie.autocorrect(word, word))];
-                //correct.sort((a, b) => Math.abs(word.length - a.length) - Math.abs(word.length - b.length));
-                correct.sort(
-                    (a, b) =>
-                        numDifferentChars(word, a) - numDifferentChars(word, b),
-                );
-                if (!correct.includes(word)) {
-                    const adjustedSuggestions = correct.filter(
-                        (word) => word.length > 1,
+                  const { left } = view.coordsAtPos(pos);
+                  const editorWidth = view.dom.clientWidth;
+
+                  if (left > editorWidth * 0.7) {
+                    menu.style.right = "0";
+                    menu.style.left = "auto";
+                  } else {
+                    menu.style.left = "0";
+                    menu.style.right = "auto";
+                  }
+
+                  const addToDictBtn = document.createElement("button");
+                  addToDictBtn.className = "addToDictButton";
+                  addToDictBtn.innerText = "Add to Dictionary";
+                  addToDictBtn.onmousedown = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    trie.insert(word);
+                    Kd.insert(word);
+
+                    view.dispatch(
+                      view.state.tr
+                        .insertText(word, pos - word.length, pos)
+                        .setMeta("closeTypoMenu", true)
                     );
-                    console.log(adjustedSuggestions);
-                }
+                    view.focus();
+                  };
+
+                  suggestions.forEach((suggestion) => {
+                    const button = document.createElement("button");
+                    button.className = "suggestion-button";
+                    button.innerText = suggestion;
+
+                    button.onmousedown = (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      
+                      const { tr } = view.state;
+                      const from = pos - word.length;
+                      const to = pos;
+
+                      view.dispatch(
+                      view.state.tr
+                        .insertText(suggestion, from, to)
+                        .setMeta("closeTypoMenu", true)
+                      );
+                      view.focus();
+                    };
+                    menu.appendChild(button);
+                  })
+                  menu.appendChild(addToDictBtn);
+                  anchor.appendChild(menu)
+                  return anchor;
+                }, {
+                  side: 1,
+                  stopEvent: () => true
+                })
+              ]);
             }
-        }, 300);
+          }
+        })
+      ]
+    }
+  })
+  
+  
+
+  /**
+   * Returns the number of different characters between two strings.
+   * @param a
+   * @param b
+   */
+  function numDifferentChars(a, b) {
+    const mapA = new Map<string, number>();
+    const mapB = new Map<string, number>();
+
+    for (let c = 0; c < a.length; c++) {
+      const char = a[c];
+      mapA.set(char, (mapA.get(char) ?? 0) + 1);
     }
 
-    function handleKdInput() {
-        clearTimeout(kdTimer);
-
-        kdTimer = setTimeout(() => {
-            console.log("User stopped typing. Checking k-D tree..");
-            let words = splitIntoWords(KdText);
-            for (let word of words) {
-                word = word.toLowerCase();
-                if (!Kd.search(word)) {
-                    console.log(Kd.autocorrect(word));
-                }
-            }
-        }, 300);
+    for (let c = 0; c < b.length; c++) {
+      const char = b[c];
+      mapB.set(char, (mapB.get(char) ?? 0) + 1);
     }
 
-    /**
-     * For a given input string, splits into an array of words.
-     * Words are delimited by spaces.
-     * Words can contain punctuation marks, UNLESS they are the last character;
-     * e.g.: "The r.ed fox" 'r.ed' is a word
-     * but in "The red. Fox" 'red.' is not the word; 'red' is.
-     * This helps correctly identify typos.
-     * @param inputString
-     */
-    function splitIntoWords(inputString) {
-        let words = inputString.split(" ");
-        for (let c = 0; c < words.length; c++) {
-            let endsInPeriod = words[c].endsWith(".");
-            let endsInComma = words[c].endsWith(",");
-            let endsInSemicolon = words[c].endsWith(";");
-            let endsInColon = words[c].endsWith(":");
-            let endsInQuestionMark = words[c].endsWith("?");
-            let endsInExclamationMark = words[c].endsWith("!");
+    let count = 0;
 
-            let endsInPunctuation =
-                endsInPeriod ||
-                endsInComma ||
-                endsInSemicolon ||
-                endsInColon ||
-                endsInQuestionMark ||
-                endsInExclamationMark;
-            if (endsInPunctuation) {
-                words[c] = words[c].slice(0, -1);
-            }
+    mapA.forEach((value, key, map) => {
+      const bValue = mapB.get(key) ?? 0;
+      count += Math.abs(value - bValue);
+    });
 
-            // First period already cut out... (or just a .. ellipsis)
-            let endsInEllipses = words[c].endsWith("..");
-            if (endsInEllipses) {
-                words[c] = words[c].slice(0, -2);
-            }
+    mapB.forEach((value, key, map) => {
+      if (!mapA.has(key)) {
+        count += value;
+      }
+    });
+
+    return count;
+  }
+
+  let trieEditor = $state();
+  let kdEditor = $state();
+
+  onMount(() => {
+    trieEditor = createEditor({
+      extensions: [
+        StarterKit,
+        HighlightTyposExtensionTrie,
+        TypoMenuPlugin
+      ],
+      content: "Hello, world!",
+      editorProps: {
+        attributes: {
+          spellcheck: "false",
+          autocomplete: "off",
+          autocapitalize: "off",
+        },
+        handleClick: (view, pos, event) => {
+          const target = event.target as HTMLElement;
+
+          if (target.classList.contains("typo")) {
+            const word = target.innerText;
+            
+            const rawSuggestions = [...new Set(trie.autocorrect(word.toLowerCase()))];
+
+            let suggestions = rawSuggestions
+              .sort((a, b) => numDifferentChars(word, a) - numDifferentChars(word, b))
+              .slice(0, 5);
+
+            const startPos = view.posAtDOM(target, 0);
+            const endPos = startPos + word.length;
+
+            view.dispatch(
+              view.state.tr.setMeta("openTypoMenu", {
+                pos: endPos,
+                word,
+                suggestions
+              })
+            );
+
+            return true;
+          }
+
+          return false;
+        },
+      },
+    });
+
+    kdEditor = createEditor({
+      extensions: [
+        StarterKit,
+        HighlightTyposExtensionKd,
+        TypoMenuPlugin
+      ],
+      content: "Hello, world!",
+      editorProps: {
+        attributes: {
+          spellcheck: "false",
+          autocomplete: "off",
+          autocapitalize: "off",
+        },
+        handleClick: (view, pos, event) => {
+          const target = event.target as HTMLElement;
+
+          if (target.classList.contains("typo")) {
+            const word = target.innerText;
+            
+            const rawSuggestions = [...new Set(Kd.autocorrect(word.toLowerCase()))];
+
+            let suggestions = rawSuggestions
+              .sort((a, b) => a[1] - b[1])
+              .slice(0, 5)
+              .map(([suggestion]) => suggestion);
+
+            const startPos = view.posAtDOM(target, 0);
+            const endPos = startPos + word.length;
+
+            view.dispatch(
+              view.state.tr.setMeta("openTypoMenu", {
+                pos: endPos,
+                word,
+                suggestions
+              })
+            );
+
+            return true;
+          }
+
+          return false;
+        },
+      },
+    });
+  });
+
+  /**
+   * For a given input string, splits into an array of words.
+   * Words are delimited by spaces.
+   * Words can contain punctuation marks, UNLESS they are the last character;
+   * e.g.: "The r.ed fox" 'r.ed' is a word
+   * but in "The red. Fox" 'red.' is not the word; 'red' is.
+   * This helps correctly identify typos.
+   * @param inputString
+   */
+   function splitIntoWords(inputString: string) {
+    let startIndex = 0;
+    let wordIndices = [];
+    const hasAlphaAhead = /^[^ ]*\w/;
+    for (let c = 0; c < inputString.length; c++) {
+      let isPunctuation = /[.,;:!??\-_(){}"']/.test(inputString[c]);
+      let isSpace = inputString[c] === " " || inputString[c] === "\n";
+
+      const nextChar = inputString[c+1];
+      const isTerminal = !nextChar || nextChar === " ";
+      let isWordBreak = isSpace || (isPunctuation && (isTerminal || !hasAlphaAhead.test(inputString.slice(c))));
+      
+      if (isWordBreak) {
+        if (c > startIndex) {
+            wordIndices.push({
+                startIndex,
+                endIndex: c,
+                word: inputString.slice(startIndex, c)
+            })
         }
-        return words;
+        startIndex = c + 1;
+
+        if (isPunctuation && nextChar === " ") {
+            c++; 
+            startIndex = c + 1;
+        }
+      }
     }
+
+    if (startIndex < inputString.length) {
+        const lastWord = inputString.slice(startIndex);
+        // Ensure the last "word" isn't just trailing dots
+        if (/\w/.test(lastWord)) {
+            wordIndices.push({
+                startIndex,
+                endIndex: inputString.length,
+                word: lastWord
+            });
+        }
+    }
+
+    return wordIndices;
+  }
 </script>
 
 <section id="body">
-    <div class="impl">
-        <h2>Trie</h2>
-        <textarea
-            bind:value={trieText}
-            spellcheck="false"
-            autocomplete="off"
-            autocapitalize="off"
-            oninput={handleTrieInput}
-        ></textarea>
-    </div>
-    <div class="impl">
-        <h2>K-d Tree</h2>
-        <textarea
-            bind:value={KdText}
-            spellcheck="false"
-            autocomplete="off"
-            autocapitalize="off"
-            oninput={handleKdInput}
-        ></textarea>
-    </div>
+  <div class="impl">
+    <h2>Trie</h2>
+    {#if $trieEditor}
+      <EditorContent class="editor" editor={$trieEditor} />
+    {/if}
+  </div>
+  <div class="impl">
+    <h2>K-d Tree</h2>
+    {#if $kdEditor}
+      <EditorContent class="editor" editor={$kdEditor} />
+    {/if}
+  </div>
 </section>
 
 <style>
-    #body {
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        flex-direction: row;
-        justify-content: space-evenly;
-        align-items: center;
-        flex-wrap: wrap;
-    }
+  #body {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    align-items: center;
+    flex-wrap: wrap;
+  }
 
-    h2 {
-        font-family:
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            Roboto,
-            Oxygen,
-            Ubuntu,
-            Cantarell,
-            "Open Sans",
-            "Helvetica Neue",
-            sans-serif;
-        font-weight: bold;
-    }
+  :global(.typo) {
+    text-decoration: underline wavy red;
+    border: solid 1px red;
+    cursor: pointer;
+    border-radius: 4px;
+    background: rgba(255, 0, 0, 0.1);
+    padding: 2px;
+    position: relative;
+  }
 
-    textarea {
-        resize: none;
-        width: clamp(45vw, 500px, 80vw);
-        height: clamp(40vh, 500px, 60vh);
-        border: solid rgba(0, 0, 0, 0.8) 1px;
-        border-radius: 7px;
-        box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.4);
-        transition: 0.3s;
-        padding: 10px;
-        font-size: 1rem;
-    }
+  h2 {
+    font-family:
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      Oxygen,
+      Ubuntu,
+      Cantarell,
+      "Open Sans",
+      "Helvetica Neue",
+      sans-serif;
+    font-weight: bold;
+  }
 
-    textarea:hover {
-        box-shadow: 3px 3px 0px rgba(0, 0, 0, 0.5);
-    }
+  :global(.editor) {
+    width: clamp(45vw, 500px, 80vw);
+    height: clamp(40vh, 500px, 60vh);
+    border: solid rgba(0, 0, 0, 0.8) 1px;
+    border-radius: 7px;
+    box-shadow: 2px 2px 3px rgba(0, 0, 0, 0.4);
+    padding: 10px;
+    overflow-y: auto;
+    font-family: monospace;
+    line-height: 2;
+  }
+
+  :global(.tiptap:focus) {
+    outline: none;
+  }
+
+  :global(.tiptap) {
+    height: 100%;
+    font-size: 1rem;
+  }
+
+  :global(.autocorrect-menu) {
+    position: absolute;
+    top: 1em;
+    border: solid 1px black;
+    border-radius: 4px;
+    background: white;
+    padding: 2px;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0;
+  }
+
+  :global(button) {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    border-bottom: solid 1px black;
+  }
+
+  :global(.addToDictButton) {
+    border-bottom: none;
+  }
 </style>
