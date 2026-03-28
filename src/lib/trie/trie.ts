@@ -47,8 +47,9 @@ export class Trie {
             char: "",
             isWord: false,
             nodeMap: new Map<string, TrieNode>
-        }
+        };
 
+        this.outputCount = 0;
         _build_trie(this.head, words);
     }
 
@@ -60,18 +61,22 @@ export class Trie {
         _insert_trie(this.head, word);
     }
 
-    autocorrect(word: string): string[] {
+    autocorrect(word: string, originalWord: string): string[] {
         let res: string[] = [];
 
         this.outputCount = 0;
         for (let i = 0; i < word.length; ++i) {
-            res = res.concat(this.autocomplete(word.substring(0, word.length - i), word.length * 1.5));
+            res = res.concat(this.autocomplete(word.substring(0, word.length - i), originalWord, word.length * 1.5));
+
+            if (res.includes(originalWord)) {
+                break;
+            }
         }
 
         return res;
     }
 
-    autocomplete(word: string, maxLength: number): string[] {
+    autocomplete(word: string, originalWord: string, maxLength: number): string[] {
         if (word.length < 1 || word.length > maxLength || this.outputCount > 1000
         ) {
             return [];
@@ -79,7 +84,15 @@ export class Trie {
 
         let res: string[] = [];
         const wordSearch = this.search(word);
-        if (wordSearch !== undefined && wordSearch.isWord) {
+        const isWord = wordSearch !== undefined && wordSearch.isWord;
+
+        // return early if the original word is spelled correctly
+        if (isWord && word === originalWord) {
+            return [word];
+        }
+
+        // add word to res otherwise
+        if (isWord) {
             res = res.concat(word);
         }
 
@@ -87,7 +100,7 @@ export class Trie {
         if (wordSearch !== undefined) {
             wordSearch.nodeMap.forEach((value, key, map) => {
                 this.outputCount++;
-                res = res.concat(this.autocomplete(word + key, maxLength));
+                res = res.concat(this.autocomplete(word + key, originalWord, maxLength));
             })
         }
 

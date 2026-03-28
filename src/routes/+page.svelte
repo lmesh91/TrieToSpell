@@ -25,13 +25,13 @@
         mapA.forEach((value, key, map) => {
             const bValue = mapB.get(key) ?? 0;
             count += Math.abs(value - bValue);
-        })
+        });
 
         mapB.forEach((value, key, map) => {
             if (!mapA.has(key)) {
                 count += value;
             }
-        })
+        });
 
         return count;
     }
@@ -47,16 +47,16 @@
             let words = splitIntoWords(trieText);
             for (let word of words) {
                 word = word.toLowerCase();
-                const correct = [...new Set(trie.autocorrect(word))];
+                const correct = [...new Set(trie.autocorrect(word, word))];
                 //correct.sort((a, b) => Math.abs(word.length - a.length) - Math.abs(word.length - b.length));
                 correct.sort(
                     (a, b) =>
                         numDifferentChars(word, a) - numDifferentChars(word, b),
                 );
                 if (!correct.includes(word)) {
-                    const adjustedSuggestions = correct.filter(word => 
-                        word.length > 1
-                    )
+                    const adjustedSuggestions = correct.filter(
+                        (word) => word.length > 1,
+                    );
                     console.log(adjustedSuggestions);
                 }
             }
