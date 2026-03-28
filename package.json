@@ -40,6 +40,8 @@
     "vitest-browser-svelte": "^2.0.2"
   },
   "dependencies": {
+    "@tiptap/core": "^3.21.0",
+    "@tiptap/pm": "^3.21.0",
     "@tiptap/starter-kit": "^3.20.5",
     "svelte-tiptap": "^3.0.1"
   }
