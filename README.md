@@ -4,45 +4,14 @@ A spellchecker and autocorrect system. Project for COP3530 at the University of 
 
 ---
 
-# sv
+# Running
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
-
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
+After cloning the repository to your local machine, run the following commands to install the required dependencies for the project and to start a local development server hosting the project:
 
 ```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.12.8 create --template minimal --types ts --add prettier eslint vitest="usages:component,unit" --install npm trie-to-spell
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
+# Usage
 
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+After opening the URL to the local development server in your web browser of choice, allow a few seconds for the data structures and input boxes to initialize. Now begin typing in one of the input boxes, and whenever faced with an incorrectly spelled word, left click the word to see suggestions. Click a suggestion to replace the misspelled word with that  suggestion; alternatively, click `Add to Dictionary` to add the misspelled word to the dictionary.
