@@ -16,7 +16,6 @@
   import { Trie } from "$lib/trie/trie.ts";
 
   let props = $props();
-  // TODO: build the tree asynchronously or client-side
   let Kd = new KDTree(props.data.content);
   let trie = new Trie(props.data.content);
 
@@ -162,6 +161,24 @@
                     menu.style.right = "auto";
                   }
 
+                  const addToDictBtn = document.createElement("button");
+                  addToDictBtn.className = "addToDictButton";
+                  addToDictBtn.innerText = "Add to Dictionary";
+                  addToDictBtn.onmousedown = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    trie.insert(word);
+                    Kd.insert(word);
+
+                    view.dispatch(
+                      view.state.tr
+                        .insertText(word, pos - word.length, pos)
+                        .setMeta("closeTypoMenu", true)
+                    );
+                    view.focus();
+                  };
+
                   suggestions.forEach((suggestion) => {
                     const button = document.createElement("button");
                     button.className = "suggestion-button";
@@ -184,6 +201,7 @@
                     };
                     menu.appendChild(button);
                   })
+                  menu.appendChild(addToDictBtn);
                   anchor.appendChild(menu)
                   return anchor;
                 }, {
@@ -474,5 +492,9 @@
     cursor: pointer;
     padding: 2px;
     border-bottom: solid 1px black;
+  }
+
+  :global(.addToDictButton) {
+    border-bottom: none;
   }
 </style>
