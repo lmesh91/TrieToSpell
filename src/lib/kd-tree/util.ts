@@ -62,7 +62,11 @@ export function partition_words_dim(words: Word[], dim: number, start: number, e
     // to do this in-place, and utilize the limited range of the values
     const subarray = words.slice(start, end);
     subarray.sort((a, b) => a.vec[dim] - b.vec[dim]);
-    words.splice(start, subarray.length, ...subarray);
+    
+    // Insert the sorted elements back to the words array
+    for (let i = 0; i < subarray.length; i++) {
+        words[start + i] = subarray[i];
+    }
     // Determine partition location
     const partition = Math.floor((start+end-1) / 2);
     // If the median value occurs multiple times, we want

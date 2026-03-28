@@ -1,9 +1,12 @@
 <script lang="ts">
+    import { KDTree } from "$lib/kd-tree/kd.ts";
     import { Trie } from "$lib/trie/trie.ts";
 
     let props = $props();
     let trie = new Trie(props.data.content);
     let trieText = $state("");
+    // TODO: build the tree asynchronously or client-side
+    let Kd = new KDTree(props.data.content);
     let KdText = $state("");
 
     function numDifferentChars(a, b) {
@@ -69,7 +72,12 @@
         kdTimer = setTimeout(() => {
             console.log("User stopped typing. Checking k-D tree..");
             let words = splitIntoWords(KdText);
-            console.log(words);
+            for (let word of words) {
+                word = word.toLowerCase();
+                if (!Kd.search(word)) {
+                    console.log(Kd.autocorrect(word));
+                }
+            }
         }, 300);
     }
 
