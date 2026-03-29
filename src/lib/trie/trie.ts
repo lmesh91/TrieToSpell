@@ -2,6 +2,7 @@ type TrieNode = {
     char: string;
     isWord: boolean;
     nodeMap: Map<string, TrieNode>;
+    visitCount: number;
 }
 
 function _search_trie(node: TrieNode, word: string): TrieNode | undefined {
@@ -22,11 +23,13 @@ function _insert_trie(node: TrieNode, word: string): void {
     }
 
     const char = word[0];
-    const alreadyWord = node.nodeMap.has(char) ? node.nodeMap.get(char)!.isWord : false;
+    const hasChar = node.nodeMap.has(char);
+    const charNode = node.nodeMap.get(char);
     node.nodeMap.set(char, {
         char,
-        isWord: alreadyWord || word.length === 1,
-        nodeMap: node.nodeMap.has(char) ? node.nodeMap.get(char)!.nodeMap : new Map<string, TrieNode>()
+        isWord: hasChar ? charNode!.isWord : word.length === 1,
+        nodeMap: hasChar ? charNode!.nodeMap : new Map<string, TrieNode>(),
+        visitCount: hasChar ? charNode!.visitCount + 1 : 0
     });
 
     _insert_trie(node.nodeMap.get(char)!, word.substring(1));
@@ -46,7 +49,8 @@ export class Trie {
         this.head = {
             char: "",
             isWord: false,
-            nodeMap: new Map<string, TrieNode>
+            nodeMap: new Map<string, TrieNode>,
+            visitCount: 0
         };
 
         this.outputCount = 0;
@@ -98,9 +102,12 @@ export class Trie {
 
         // finding words that have word as a prefix
         if (wordSearch !== undefined) {
-            wordSearch.nodeMap.forEach((value, key, map) => {
+            // sort the entries in nodeMap by visitCount in descending order; prioritizes more commonly used nodes
+            let sortedByVisitCount = [...wordSearch.nodeMap.entries()].sort(([_key1, node1], [_key2, node2]) => node2.visitCount - node1.visitCount);
+
+            sortedByVisitCount.forEach(([_key, node]) => {
                 this.outputCount++;
-                res = res.concat(this.autocomplete(word + key, originalWord, maxLength));
+                res = res.concat(this.autocomplete(word + node.char, originalWord, maxLength));
             })
         }
 
