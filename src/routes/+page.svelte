@@ -169,9 +169,9 @@
                       e.preventDefault();
                       e.stopPropagation();
 
-                      trie.insert(word);
+                      trie.insert(word.toLowerCase());
                       if (Kd_built) {
-                        Kd.insert(word);
+                        Kd.insert(word.toLowerCase());
                       }
 
                       view.dispatch(
